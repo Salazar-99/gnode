@@ -301,10 +301,11 @@ else
     fi
 fi
 
-# Cloudflare Token
+# Cloudflare Token (needed by both infra and apps modules)
 ask_input "cf_token" "Enter Cloudflare API token" "" "true"
 if [ -z "$cf_token" ]; then echo "Error: required"; exit 1; fi
 echo "cloudflare_api_token = \"$cf_token\"" >> "$SECRETS_INFRA"
+echo "cloudflare_api_token = \"$cf_token\"" >> "$SECRETS_APPS"
 
 # Grafana Password
 ask_input "graf_pass" "Enter Grafana admin password" "" "true"
@@ -350,7 +351,7 @@ echo ""
 echo "--- Starting Deployment ---"
 
 # Check if required binaries are installed
-for cmd in terraform kubectl helm az; do
+for cmd in terraform kubectl az; do
     if ! command -v $cmd &> /dev/null; then
         echo "Error: $cmd is not installed. Please install it and try again."
         exit 1

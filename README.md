@@ -12,6 +12,7 @@ This Terraform module deploys:
 ## Requirements
 - Terraform installed
 - Azure CLI installed and logged in (`az login`)
+- kubectl installed
 - An active Azure account with permissions to create VMs and networking resources
 - A domain registered with Cloudflare (with API token that has DNS edit permissions)
 - SSH keypair for VM access (**RSA format required by Azure**, e.g., `ssh-keygen -t rsa -b 4096`)
@@ -55,6 +56,72 @@ To remove all local Terraform state and configuration files (useful for a fresh 
 This deletes `.terraform/` directories, `*.tfstate` files, and `*.tfvars` files from both modules.
 
 The whole process should take approximately 10-15 minutes end to end. Terraform will output the public IP of the instance and a properly configured kubeconfig to connect to the cluster.
+
+## Configuration
+
+The `run.sh` script prompts for all configuration variables and secrets. Variables are written to `terraform/infra/prod.tfvars` and `terraform/apps/prod.tfvars`, while secrets are written to corresponding `secrets.auto.tfvars` files.
+
+### Variables
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `resource_group_name` | No | Azure resource group name (default: `gnode`) |
+| `location` | No | Azure region (default: `westus`) |
+| `vm_size` | No | Azure VM size (default: `Standard_D4s_v3`, ~$140/mo) |
+| `admin_username` | No | SSH admin username for the VM (default: `g`) |
+| `vm_name` | No | Name of the Azure VM (default: `gnode`) |
+| `enable_github_actions_ips` | No | Whether to allow access to the Kubernetes API from GitHub Actions IP ranges (default: `false`) |
+| `local_ip_address` | No | Your local IP address (CIDR) to allow Kubernetes API access; auto-detected if not provided |
+| `root_domain` | **Yes** | Your root domain name (e.g., `gerardosalazar.com`) |
+| `acr_registry_url` | No | Azure Container Registry URL (e.g., `myregistry.azurecr.io`) |
+| `acr_secret_name` | No | Name of the Kubernetes image pull secret (default: `acr-secret`; only prompted if ACR URL provided) |
+| `acr_secret_namespace` | No | Namespace for the image pull secret (default: `apps`; only prompted if ACR URL provided) |
+
+### Secrets
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `ssh_public_key` | **Yes** | SSH public key content for VM access (auto-generated if not provided) |
+| `ssh_private_key_path` | No | Path to the SSH private key file (default: `~/.ssh/id_rsa_gnode`) |
+| `cloudflare_api_token` | **Yes** | Cloudflare API token with DNS edit permissions for your domain |
+| `grafana_admin_password` | **Yes** | Password for the Grafana `admin` user |
+| `acr_username` | Conditional | ACR username/token (required only if `acr_registry_url` is provided) |
+| `acr_password` | Conditional | ACR password (required only if `acr_registry_url` is provided) |
+
+## Optional Features
+
+### Azure Container Registry (ACR) Integration
+
+ACR integration is **optional**. If you don't provide an `acr_registry_url`, no image pull secrets will be created, and you can use public container images or configure registry credentials manually.
+
+**When to enable:**
+- You have a private Azure Container Registry with your application images
+- You want Terraform to automatically create and manage Kubernetes image pull secrets
+
+**How to enable:**
+1. Set `acr_registry_url` to your registry URL (e.g., `myregistry.azurecr.io`)
+2. Provide `acr_username` and `acr_password` credentials
+3. Optionally customize `acr_secret_name` (default: `acr-secret`) and `acr_secret_namespace` (default: `apps`)
+
+The setup script will only prompt for ACR credentials if you provide a registry URL.
+
+### GitHub Actions IP Access
+
+By default, the Kubernetes API (port 6443) is only accessible from your local IP address. If you want to deploy to the cluster from GitHub Actions CI/CD pipelines, you can enable access from GitHub's runner IP ranges.
+
+**When to enable:**
+- You have GitHub Actions workflows that need to run `kubectl` commands against the cluster
+- You want automated deployments from GitHub Actions
+
+**How to enable:**
+Set `enable_github_actions_ips = true` in your `prod.tfvars` file.
+
+**Security considerations:**
+- This opens port 6443 to all GitHub Actions runner IPs (both IPv4 and IPv6 ranges)
+- The Kubernetes API still requires valid kubeconfig credentials for authentication
+- Consider using a more restrictive approach (e.g., VPN, bastion host) for production environments with sensitive workloads
+
+**Note:** GitHub Actions IPs are fetched from GitHub's meta API and chunked to comply with Azure NSG limits (max 4000 addresses per rule).
 
 ## Connecting To The System
 
@@ -170,73 +237,6 @@ Until you deploy this service, requests to your root domain will return 503 erro
 
 Once the deployment is complete you can monitor your system via Grafana by visiting `grafana.${root_domain}` and logging in as the `admin` user with the password you configured.
 
-## Configuration
-
-The `run.sh` script prompts for all configuration variables and secrets. Variables are written to `terraform/infra/prod.tfvars` and `terraform/apps/prod.tfvars`, while secrets are written to corresponding `secrets.auto.tfvars` files.
-
-### Variables
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `resource_group_name` | No | Azure resource group name (default: `gnode`) |
-| `location` | No | Azure region (default: `westus`) |
-| `vm_size` | No | Azure VM size (default: `Standard_D4s_v3`, ~$140/mo) |
-| `admin_username` | No | SSH admin username for the VM (default: `g`) |
-| `vm_name` | No | Name of the Azure VM (default: `gnode`) |
-| `enable_github_actions_ips` | No | Whether to allow access to the Kubernetes API from GitHub Actions IP ranges (default: `false`) |
-| `github_actions_ips` | No | CIDR ranges to allow Kubernetes API access for GitHub Actions (has sensible defaults) |
-| `local_ip_address` | No | Your local IP address (CIDR) to allow Kubernetes API access; auto-detected if not provided |
-| `root_domain` | **Yes** | Your root domain name (e.g., `gerardosalazar.com`) |
-| `acr_registry_url` | No | Azure Container Registry URL (e.g., `myregistry.azurecr.io`) |
-| `acr_secret_name` | No | Name of the Kubernetes image pull secret (default: `acr-secret`; only prompted if ACR URL provided) |
-| `acr_secret_namespace` | No | Namespace for the image pull secret (default: `apps`; only prompted if ACR URL provided) |
-
-### Secrets
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `ssh_public_key` | **Yes** | Path to your SSH public key file for VM access |
-| `ssh_private_key_path` | No | Path to the private key matching `ssh_public_key` (defaults to `~/.ssh/id_rsa`) |
-| `cloudflare_api_token` | **Yes** | Cloudflare API token with DNS edit permissions for your domain |
-| `grafana_admin_password` | **Yes** | Password for the Grafana `admin` user |
-| `acr_username` | Conditional | ACR username/token (required only if `acr_registry_url` is provided) |
-| `acr_password` | Conditional | ACR password (required only if `acr_registry_url` is provided) |
-
-## Optional Features
-
-### Azure Container Registry (ACR) Integration
-
-ACR integration is **optional**. If you don't provide an `acr_registry_url`, no image pull secrets will be created, and you can use public container images or configure registry credentials manually.
-
-**When to enable:**
-- You have a private Azure Container Registry with your application images
-- You want Terraform to automatically create and manage Kubernetes image pull secrets
-
-**How to enable:**
-1. Set `acr_registry_url` to your registry URL (e.g., `myregistry.azurecr.io`)
-2. Provide `acr_username` and `acr_password` credentials
-3. Optionally customize `acr_secret_name` (default: `acr-secret`) and `acr_secret_namespace` (default: `apps`)
-
-The setup script will only prompt for ACR credentials if you provide a registry URL.
-
-### GitHub Actions IP Access
-
-By default, the Kubernetes API (port 6443) is only accessible from your local IP address. If you want to deploy to the cluster from GitHub Actions CI/CD pipelines, you can enable access from GitHub's runner IP ranges.
-
-**When to enable:**
-- You have GitHub Actions workflows that need to run `kubectl` commands against the cluster
-- You want automated deployments from GitHub Actions
-
-**How to enable:**
-Set `enable_github_actions_ips = true` in your `prod.tfvars` file.
-
-**Security considerations:**
-- This opens port 6443 to all GitHub Actions runner IPs (both IPv4 and IPv6 ranges)
-- The Kubernetes API still requires valid kubeconfig credentials for authentication
-- Consider using a more restrictive approach (e.g., VPN, bastion host) for production environments with sensitive workloads
-
-**Note:** GitHub Actions IPs are fetched from GitHub's meta API and chunked to comply with Azure NSG limits (max 4000 addresses per rule).
-
 ## Deployment Process
 
 The deployment is split into two phases for better stability and provider isolation:
@@ -321,16 +321,20 @@ This phase handles Helm charts and Kubernetes manifests.
 13. **Wait for cert-manager to be ready**
     - The `helm_release.cert_manager` resource is configured with `wait = true`, which ensures the deployment and its webhook are ready before proceeding.
 
-14. **Apply cert-manager Manifests** (`kubernetes_manifest` resources)
-    - Manifests are templated from `manifests/certs.yaml` using `var.root_domain` and applied in order:
-    - **ClusterIssuer** (`kubernetes_manifest.letsencrypt_cluster_issuer`): Creates Let's Encrypt ClusterIssuer with email `admin@${root_domain}`. Depends on `helm_release.cert_manager`.
-    - **Certificate** (`kubernetes_manifest.root_domain_certificate`): Creates TLS certificate for `${root_domain}` and `www.${root_domain}`
-    - **Ingress** (`kubernetes_manifest.root_domain_ingress`): Creates ingress for `${root_domain}` and `www.${root_domain}` pointing to `${domain_name_sanitized}-service`
+14. **Create Cloudflare API Token Secret** (`kubernetes_secret.cloudflare_api_token`)
+    - Creates a Kubernetes secret in the `cert-manager` namespace containing the Cloudflare API token
+    - Used by cert-manager for DNS-01 ACME challenge validation
 
-15. **Wait for Grafana**
+15. **Apply cert-manager Manifests** (`null_resource` with kubectl)
+    - Manifests are templated from `manifests/certs.yaml` using `var.root_domain` and applied via kubectl:
+    - **ClusterIssuer** (`null_resource.letsencrypt_cluster_issuer`): Creates Let's Encrypt ClusterIssuer with email `admin@${root_domain}`. Depends on `helm_release.cert_manager`.
+    - **Certificate** (`null_resource.root_domain_certificate`): Creates TLS certificate for `${root_domain}` and `www.${root_domain}`
+    - **Ingress** (`null_resource.root_domain_ingress`): Creates ingress for `${root_domain}` and `www.${root_domain}` pointing to `${domain_name_sanitized}-service`
+
+16. **Wait for Grafana**
     - The `helm_release.kube_prometheus_stack` resource is configured with `wait = true`, which ensures the Grafana deployment is ready before proceeding.
 
-16. **Apply Grafana Ingress** (`kubernetes_manifest.grafana_ingress`)
+17. **Apply Grafana Ingress** (`null_resource.grafana_ingress`)
     - Manifest is templated from `manifests/grafana-ingress.yaml` using `var.root_domain`
     - Creates ingress for `grafana.${root_domain}`
     - Points to `kube-prometheus-stack-grafana` service in `monitoring` namespace (port 80)
@@ -338,12 +342,10 @@ This phase handles Helm charts and Kubernetes manifests.
     - Uses Traefik ingress class with `web` and `websecure` entrypoints
     - Depends on `helm_release.kube_prometheus_stack` and the ClusterIssuer.
 
-17. **Create apps Namespace** (`kubernetes_namespace.apps`)
-    - Creates the `apps` namespace for application deployments
-
-18. **Create ACR Image Pull Secret** (`kubernetes_secret.acr_image_pull_secret`)
-    - Creates a Kubernetes image pull secret for Azure Container Registry
-    - Default name: `acr-secret` in `apps` namespace (configurable)
+18. **Create apps Namespace & ACR Secret** (conditional, only if ACR configured)
+    - `kubernetes_namespace.apps`: Creates the namespace specified by `acr_secret_namespace` (default: `apps`)
+    - `kubernetes_secret.acr_image_pull_secret`: Creates the image pull secret for Azure Container Registry
+    - Only created when `acr_registry_url`, `acr_username`, and `acr_password` are all provided
 
 ### Resource Dependency Graph
 
@@ -361,14 +363,13 @@ Resource Group
                     └── Copy Kubeconfig
                         └── Wait for K8s API
                             ├── Install kube-prometheus-stack
-                            │   └── Wait for Grafana
-                            │       └── Apply Grafana Ingress
+                            │   └── Apply Grafana Ingress
                             ├── Install cert-manager
-                            │   └── Wait for cert-manager to be ready
+                            │   └── Create Cloudflare API Token Secret
                             │       └── Apply ClusterIssuer
                             │           └── Apply Certificate
                             │               └── Apply root domain Ingress
-                            └── Create apps Namespace
+                            └── (If ACR configured) Create apps Namespace
                                 └── Create ACR Image Pull Secret
 ```
 
