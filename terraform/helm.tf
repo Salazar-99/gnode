@@ -29,7 +29,7 @@ resource "helm_release" "kube_prometheus_stack" {
 
   # Wait for all resources to be ready
   wait    = true
-  timeout = 600
+  timeout = 300
 
   # Set some basic values to reduce resource usage for a single node cluster
   values = [
@@ -84,7 +84,7 @@ resource "helm_release" "cert_manager" {
 
   # Wait for all resources to be ready
   wait    = true
-  timeout = 600
+  timeout = 300
 
   # Install CRDs
   set {

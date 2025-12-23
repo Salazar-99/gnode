@@ -165,6 +165,7 @@ The `setup.sh` script prompts for all configuration variables and secrets. Varia
 | `vm_size` | No | Azure VM size (default: `Standard_D4s_v3`, ~$140/mo) |
 | `admin_username` | No | SSH admin username for the VM (default: `g`) |
 | `vm_name` | No | Name of the Azure VM (default: `gnode`) |
+| `enable_github_actions_ips` | No | Whether to allow access to the Kubernetes API from GitHub Actions IP ranges (default: `false`) |
 | `github_actions_ips` | No | CIDR ranges to allow Kubernetes API access for GitHub Actions (has sensible defaults) |
 | `local_ip_address` | No | Your local IP address (CIDR) to allow Kubernetes API access; auto-detected if not provided |
 | `root_domain` | **Yes** | Your root domain name (e.g., `gerardosalazar.com`) |
@@ -177,6 +178,7 @@ The `setup.sh` script prompts for all configuration variables and secrets. Varia
 | Name | Required | Description |
 |------|----------|-------------|
 | `ssh_public_key` | **Yes** | Path to your SSH public key file for VM access |
+| `ssh_private_key_path` | No | Path to the private key matching `ssh_public_key` (defaults to `~/.ssh/id_rsa`) |
 | `cloudflare_api_token` | **Yes** | Cloudflare API token with DNS edit permissions for your domain |
 | `grafana_admin_password` | **Yes** | Password for the Grafana `admin` user |
 | `acr_username` | Conditional | ACR username/token (required only if `acr_registry_url` is provided) |
@@ -195,11 +197,11 @@ The `setup.sh` script prompts for all configuration variables and secrets. Varia
    - Allocates static public IP for VM
 
 4. **Network Security Group** (`azurerm_network_security_group.gnode_nsg`)
-   - Configures firewall rules:
-     - SSH (port 22) - open to all
-     - Kubernetes API (port 6443) - restricted to GitHub Actions IPs + local IP
-     - HTTP (port 80) - open to all
-     - HTTPS (port 443) - open to all
+  - Configures firewall rules:
+    - SSH (port 22) - open to all
+    - Kubernetes API (port 6443) - restricted to GitHub Actions IPs (if enabled) + local IP
+    - HTTP (port 80) - open to all
+    - HTTPS (port 443) - open to all
    - Uses local IP detection from `main.tf` (via ipify.org if not provided)
 
 5. **Network Interface** (`azurerm_network_interface.gnode_nic`)
@@ -235,12 +237,12 @@ The `setup.sh` script prompts for all configuration variables and secrets. Varia
     - Creates `monitoring` namespace
     - Installs Prometheus, Grafana, and Alertmanager
     - Configures storage and retention settings for a small node
-    - Waits for all resources to be ready (600s timeout)
+    - Waits for all resources to be ready (300s timeout)
 
 12. **Install cert-manager** (`helm_release.cert_manager`)
     - Creates `cert-manager` namespace
-    - Installs  cert-manager` for TLS certificate management
-    - Waits for all resources to be ready (600s timeout)
+    - Installs cert-manager for TLS certificate management
+    - Waits for all resources to be ready (300s timeout)
 
 #### Phase 4: Infrastructure Configuration
 13. **Wait for cert-manager to be ready**

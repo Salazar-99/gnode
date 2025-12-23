@@ -30,15 +30,6 @@ admin_username = "azureuser"
 # Network Security Configuration
 # =============================================================================
 
-# GitHub Actions IP ranges for Kubernetes API access (port 6443)
-# Get latest ranges from: https://api.github.com/meta
-github_actions_ips = [
-  "140.82.112.0/20",
-  "143.55.64.0/20",
-  "185.199.108.0/22",
-  "192.30.252.0/22"
-]
-
 # Your local IP address (CIDR format) for SSH and K8s API access
 # Leave empty to auto-detect from ipify.org
 # local_ip_address = "1.2.3.4/32"

@@ -6,6 +6,7 @@ terraform/.terraform.lock.hcl
 terraform/prod.tfvars
 terraform/*.tfvars
 !terraform/terraform.tfvars.example
+.terraform.tfstate.lock.info
 
 # Kubeconfig - contains cluster credentials
 kubeconfig.yaml

@@ -45,6 +45,34 @@ ask_input() {
     eval "$var_name=\"\$final_val\""
 }
 
+# Helper function for yes/no questions
+# Usage: ask_yes_no "Variable Name" "Prompt message" "default_val" (true/false)
+ask_yes_no() {
+    local var_name="$1"
+    local prompt_msg="$2"
+    local default_val="$3"
+    local input_val
+
+    local full_prompt="$prompt_msg"
+    if [ -n "$default_val" ]; then
+        full_prompt="$prompt_msg (y/n) [$default_val]"
+    else
+        full_prompt="$prompt_msg (y/n)"
+    fi
+
+    printf "%s: " "$full_prompt"
+    read -r input_val
+
+    local final_val
+    case "${input_val:-$default_val}" in
+        [Yy]* ) final_val="true" ;;
+        [Nn]* ) final_val="false" ;;
+        * ) final_val="false" ;;
+    esac
+    
+    eval "$var_name=\"\$final_val\""
+}
+
 # Part 1: Configuration Variables
 echo "--- Configuration Variables ---"
 echo "Press Enter to use default values shown in brackets"
@@ -65,28 +93,13 @@ echo "admin_username = \"$admin_username\"" >> "$TFVARS_FILE"
 ask_input "vm_name" "VM name" "gnode"
 echo "vm_name = \"$vm_name\"" >> "$TFVARS_FILE"
 
-ask_input "gh_input" "GitHub Actions IPs (comma-separated, or Enter for default)" ""
-if [ -z "$gh_input" ]; then
-    github_actions_ips='["140.82.112.0/20", "143.55.64.0/20", "185.199.108.0/22", "192.30.252.0/22", "2620:112:3000::/44"]'
-else
-    github_actions_ips="["
-    first=true
-    SAVE_IFS=$IFS
-    IFS=','
-    for ip in $gh_input; do
-        if [ "$first" = true ]; then first=false; else github_actions_ips+=", "; fi
-        clean_ip=$(echo "$ip" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-        github_actions_ips+="\"$clean_ip\""
-    done
-    IFS=$SAVE_IFS
-    github_actions_ips+="]"
-fi
-echo "github_actions_ips = $github_actions_ips" >> "$TFVARS_FILE"
-
 ask_input "local_ip_address" "Local IP address (CIDR) [empty]" ""
 if [ -n "$local_ip_address" ]; then
     echo "local_ip_address = \"$local_ip_address\"" >> "$TFVARS_FILE"
 fi
+
+ask_yes_no "enable_github_actions_ips" "Enable GitHub Actions IP ranges (for CI/CD access)" "n"
+echo "enable_github_actions_ips = $enable_github_actions_ips" >> "$TFVARS_FILE"
 
 ask_input "acr_registry_url" "ACR registry URL (e.g., myregistry.azurecr.io) [optional]" ""
 if [ -n "$acr_registry_url" ]; then

@@ -50,15 +50,25 @@ resource "null_resource" "wait_for_k3s" {
     command = <<-EOT
       VM_IP="${azurerm_public_ip.gnode_ip.ip_address}"
       ADMIN_USER="${var.admin_username}"
-      MAX_ATTEMPTS=60
+      SSH_KEY="${var.ssh_private_key_path}"
+      MAX_ATTEMPTS=150
       ATTEMPT=0
       
-      echo "Waiting for k3s to be ready..."
+      echo "Waiting for k3s to be ready (this can take up to 5 minutes)..."
       
       while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        # Build SSH command with optional private key
+        SSH_CMD="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5"
+        if [ -n "$SSH_KEY" ]; then
+          # Handle tilde expansion if necessary
+          EXPANDED_KEY=$(eval echo $SSH_KEY)
+          if [ -f "$EXPANDED_KEY" ]; then
+            SSH_CMD="$SSH_CMD -i $EXPANDED_KEY"
+          fi
+        fi
+
         # Check if k3s service is active and kubeconfig exists
-        if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 \
-          $ADMIN_USER@$VM_IP \
+        if $SSH_CMD $ADMIN_USER@$VM_IP \
           'sudo systemctl is-active k3s > /dev/null 2>&1 && sudo test -f /etc/rancher/k3s/k3s.yaml' 2>/dev/null; then
           echo "k3s is ready!"
           exit 0
@@ -69,7 +79,7 @@ resource "null_resource" "wait_for_k3s" {
         sleep 2
       done
       
-      echo "ERROR: k3s did not become ready within $((MAX_ATTEMPTS * 2)) seconds"
+      echo "ERROR: k3s did not become ready within 5 minutes"
       exit 1
     EOT
   }
@@ -92,10 +102,22 @@ resource "null_resource" "copy_kubeconfig" {
     command = <<-EOT
       VM_IP="${azurerm_public_ip.gnode_ip.ip_address}"
       ADMIN_USER="${var.admin_username}"
+      SSH_KEY="${var.ssh_private_key_path}"
       
+      echo "Copying kubeconfig from VM..."
+      
+      # Build SSH command with optional private key
+      SSH_CMD="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+      if [ -n "$SSH_KEY" ]; then
+        # Handle tilde expansion if necessary
+        EXPANDED_KEY=$(eval echo $SSH_KEY)
+        if [ -f "$EXPANDED_KEY" ]; then
+          SSH_CMD="$SSH_CMD -i $EXPANDED_KEY"
+        fi
+      fi
+
       # Copy kubeconfig from VM
-      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        $ADMIN_USER@$VM_IP \
+      $SSH_CMD $ADMIN_USER@$VM_IP \
         'sudo cat /etc/rancher/k3s/k3s.yaml' > ${path.module}/../kubeconfig.yaml.tmp
       
       # Replace server IP with VM's public IP

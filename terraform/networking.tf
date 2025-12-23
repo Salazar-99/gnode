@@ -45,18 +45,34 @@ resource "azurerm_network_security_group" "gnode_nsg" {
     destination_address_prefix = "*"
   }
 
-  # Kubernetes API port - restricted to GitHub Actions IPs only
+  # Kubernetes API port - GitHub Actions IPv4 (Optional, filtered to stay under 4000 total NSG limit)
   dynamic "security_rule" {
-    for_each = var.github_actions_ips
+    for_each = chunklist(local.github_ipv4_final, 4000)
     content {
-      name                       = "KubernetesAPI-GitHubActions-${replace(security_rule.value, "/", "-")}"
+      name                       = "K8sAPI-GH-IPv4-${security_rule.key}"
       priority                   = 1002 + security_rule.key
       direction                  = "Inbound"
       access                     = "Allow"
       protocol                   = "Tcp"
       source_port_range          = "*"
       destination_port_range     = "6443"
-      source_address_prefix      = security_rule.value
+      source_address_prefixes    = security_rule.value
+      destination_address_prefix = "*"
+    }
+  }
+
+  # Kubernetes API port - GitHub Actions IPv6 (Optional, filtered to stay under 4000 total NSG limit)
+  dynamic "security_rule" {
+    for_each = chunklist(local.github_ipv6_final, 4000)
+    content {
+      name                       = "K8sAPI-GH-IPv6-${security_rule.key}"
+      priority                   = 1102 + security_rule.key
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "6443"
+      source_address_prefixes    = security_rule.value
       destination_address_prefix = "*"
     }
   }

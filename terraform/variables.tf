@@ -27,22 +27,16 @@ variable "ssh_public_key" {
   type        = string
 }
 
+variable "ssh_private_key_path" {
+  description = "Path to the SSH private key file for VM access (used by local-exec)"
+  type        = string
+  default     = "~/.ssh/id_rsa"
+}
+
 variable "vm_name" {
   description = "Name of the virtual machine"
   type        = string
   default     = "gnode"
-}
-
-variable "github_actions_ips" {
-  description = "List of GitHub Actions IP CIDR ranges allowed to access port 6443"
-  type        = list(string)
-  default = [
-    "140.82.112.0/20",
-    "143.55.64.0/20",
-    "185.199.108.0/22",
-    "192.30.252.0/22",
-    "2620:112:3000::/44"
-  ]
 }
 
 variable "local_ip_address" {
@@ -104,5 +98,11 @@ variable "grafana_admin_password" {
   description = "Admin password for Grafana dashboard"
   type        = string
   sensitive   = true
+}
+
+variable "enable_github_actions_ips" {
+  description = "Whether to allow access to the Kubernetes API from GitHub Actions IP ranges"
+  type        = bool
+  default     = false
 }
 
