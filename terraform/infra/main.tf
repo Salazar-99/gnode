@@ -43,7 +43,7 @@ locals {
 # on the very first plan before the VM is even created.
 # This file is gitignored and will be overwritten with real data by the VM provisioner.
 resource "local_file" "kubeconfig_placeholder" {
-  count    = fileexists("${path.module}/../kubeconfig.yaml") ? 0 : 1
+  count    = fileexists("${path.module}/../../kubeconfig.yaml") ? 0 : 1
   content  = <<-EOF
     apiVersion: v1
     clusters:
@@ -63,6 +63,6 @@ resource "local_file" "kubeconfig_placeholder" {
       user:
         token: placeholder
   EOF
-  filename = "${path.module}/../kubeconfig.yaml"
+  filename = "${path.module}/../../kubeconfig.yaml"
 }
 

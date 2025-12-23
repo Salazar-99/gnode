@@ -7,12 +7,16 @@ echo "=== Terraform Variable Setup ==="
 echo ""
 
 # Configuration files
-TFVARS_FILE="terraform/prod.tfvars"
-SECRETS_FILE="terraform/secrets.auto.tfvars"
+TFVARS_INFRA="terraform/infra/prod.tfvars"
+SECRETS_INFRA="terraform/infra/secrets.auto.tfvars"
+TFVARS_APPS="terraform/apps/prod.tfvars"
+SECRETS_APPS="terraform/apps/secrets.auto.tfvars"
 
-mkdir -p terraform
-> "$TFVARS_FILE"  # Clear/create the file
-> "$SECRETS_FILE" # Clear/create the file
+mkdir -p terraform/infra terraform/apps
+> "$TFVARS_INFRA"  # Clear/create the file
+> "$SECRETS_INFRA" # Clear/create the file
+> "$TFVARS_APPS"   # Clear/create the file
+> "$SECRETS_APPS"  # Clear/create the file
 
 # Helper function for prompting
 # Usage: ask_input "Variable Name" "Prompt message" "default_value" [is_secret]
@@ -79,37 +83,40 @@ echo "Press Enter to use default values shown in brackets"
 echo ""
 
 ask_input "resource_group_name" "Azure resource group name" "gnode"
-echo "resource_group_name = \"$resource_group_name\"" >> "$TFVARS_FILE"
+echo "resource_group_name = \"$resource_group_name\"" >> "$TFVARS_INFRA"
 
 ask_input "location" "Azure region" "westus2"
-echo "location = \"$location\"" >> "$TFVARS_FILE"
+echo "location = \"$location\"" >> "$TFVARS_INFRA"
 
 ask_input "vm_size" "VM size" "Standard_D4s_v3"
-echo "vm_size = \"$vm_size\"" >> "$TFVARS_FILE"
+echo "vm_size = \"$vm_size\"" >> "$TFVARS_INFRA"
 
 ask_input "admin_username" "Admin username" "g"
-echo "admin_username = \"$admin_username\"" >> "$TFVARS_FILE"
+echo "admin_username = \"$admin_username\"" >> "$TFVARS_INFRA"
 
 ask_input "vm_name" "VM name" "gnode"
-echo "vm_name = \"$vm_name\"" >> "$TFVARS_FILE"
+echo "vm_name = \"$vm_name\"" >> "$TFVARS_INFRA"
 
 ask_input "local_ip_address" "Local IP address (CIDR) [empty]" ""
 if [ -n "$local_ip_address" ]; then
-    echo "local_ip_address = \"$local_ip_address\"" >> "$TFVARS_FILE"
+    echo "local_ip_address = \"$local_ip_address\"" >> "$TFVARS_INFRA"
 fi
 
+ask_input "ssh_private_key_path" "Local path to SSH private key" "~/.ssh/id_rsa_gnode"
+echo "ssh_private_key_path = \"$ssh_private_key_path\"" >> "$TFVARS_INFRA"
+
 ask_yes_no "enable_github_actions_ips" "Enable GitHub Actions IP ranges (for CI/CD access)" "n"
-echo "enable_github_actions_ips = $enable_github_actions_ips" >> "$TFVARS_FILE"
+echo "enable_github_actions_ips = $enable_github_actions_ips" >> "$TFVARS_INFRA"
 
 ask_input "acr_registry_url" "ACR registry URL (e.g., myregistry.azurecr.io) [optional]" ""
 if [ -n "$acr_registry_url" ]; then
-    echo "acr_registry_url = \"$acr_registry_url\"" >> "$TFVARS_FILE"
+    echo "acr_registry_url = \"$acr_registry_url\"" >> "$TFVARS_APPS"
     
     ask_input "acr_secret_name" "ACR secret name" "acr-secret"
-    echo "acr_secret_name = \"$acr_secret_name\"" >> "$TFVARS_FILE"
+    echo "acr_secret_name = \"$acr_secret_name\"" >> "$TFVARS_APPS"
 
     ask_input "acr_secret_namespace" "ACR secret namespace" "apps"
-    echo "acr_secret_namespace = \"$acr_secret_namespace\"" >> "$TFVARS_FILE"
+    echo "acr_secret_namespace = \"$acr_secret_namespace\"" >> "$TFVARS_APPS"
 fi
 
 ask_input "root_domain" "Root domain name (required)" ""
@@ -117,11 +124,12 @@ if [ -z "$root_domain" ]; then
     echo "Error: root_domain is required"
     exit 1
 fi
-echo "root_domain = \"$root_domain\"" >> "$TFVARS_FILE"
+echo "root_domain = \"$root_domain\"" >> "$TFVARS_INFRA"
+echo "root_domain = \"$root_domain\"" >> "$TFVARS_APPS"
 
 echo ""
 echo "--- Secrets (Environment Variables) ---"
-echo "These will be written to $SECRETS_FILE"
+echo "These will be written to $SECRETS_INFRA and $SECRETS_APPS"
 echo ""
 
 # SSH Key
@@ -132,7 +140,7 @@ if [ -n "$SSH_KEY_FILE" ]; then
         # Check if it's an RSA key
         if grep -q "ssh-rsa" "$SSH_KEY_FILE"; then
             ssh_pub_key=$(cat "$SSH_KEY_FILE")
-            echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_FILE"
+            echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_INFRA"
             echo "✓ SSH public key loaded from $SSH_KEY_FILE"
         else
             echo "Error: The provided key is not in RSA format (required by Azure Terraform provider)."
@@ -147,19 +155,19 @@ else
     DEFAULT_KEY="$HOME/.ssh/id_rsa.pub"
     if [ -f "$DEFAULT_KEY" ] && grep -q "ssh-rsa" "$DEFAULT_KEY"; then
         ssh_pub_key=$(cat "$DEFAULT_KEY")
-        echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_FILE"
+        echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_INFRA"
         echo "✓ Using existing RSA key found at $DEFAULT_KEY"
     else
         NEW_KEY="$HOME/.ssh/id_rsa_gnode"
         if [ -f "$NEW_KEY" ]; then
             ssh_pub_key=$(cat "${NEW_KEY}.pub")
-            echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_FILE"
+            echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_INFRA"
             echo "✓ Using existing gnode RSA key found at $NEW_KEY.pub"
         else
             echo "--- Generating new RSA key pair for gnode ---"
             ssh-keygen -t rsa -b 4096 -f "$NEW_KEY" -N ""
             ssh_pub_key=$(cat "${NEW_KEY}.pub")
-            echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_FILE"
+            echo "ssh_public_key = \"$ssh_pub_key\"" >> "$SECRETS_INFRA"
             echo "NOTE: New RSA key pair generated at $NEW_KEY"
             echo "✓ New RSA key loaded"
         fi
@@ -169,26 +177,21 @@ fi
 # Cloudflare Token
 ask_input "cf_token" "Enter Cloudflare API token" "" "true"
 if [ -z "$cf_token" ]; then echo "Error: required"; exit 1; fi
-echo "cloudflare_api_token = \"$cf_token\"" >> "$SECRETS_FILE"
+echo "cloudflare_api_token = \"$cf_token\"" >> "$SECRETS_INFRA"
 
 # Grafana Password
 ask_input "graf_pass" "Enter Grafana admin password" "" "true"
 if [ -z "$graf_pass" ]; then echo "Error: required"; exit 1; fi
-echo "grafana_admin_password = \"$graf_pass\"" >> "$SECRETS_FILE"
+echo "grafana_admin_password = \"$graf_pass\"" >> "$SECRETS_APPS"
 
 # ACR Secrets
 if [ -n "$acr_registry_url" ]; then
     ask_input "acr_user" "Enter ACR username" "" "true"
-    echo "acr_username = \"$acr_user\"" >> "$SECRETS_FILE"
+    echo "acr_username = \"$acr_user\"" >> "$SECRETS_APPS"
     
     ask_input "acr_pass" "Enter ACR password" "" "true"
-    echo "acr_password = \"$acr_pass\"" >> "$SECRETS_FILE"
-    
-    echo "acr_registry_url = \"$acr_registry_url\"" >> "$SECRETS_FILE"
+    echo "acr_password = \"$acr_pass\"" >> "$SECRETS_APPS"
 fi
-
-# Set permissions
-chmod 600 "$SECRETS_FILE"
 
 # Part 3: Ensure kubeconfig placeholder exists for Terraform provider validation
 KUBECONFIG_FILE="kubeconfig.yaml"
@@ -215,13 +218,56 @@ EOF
     echo "✓ Created placeholder kubeconfig.yaml (will be updated after VM creation)"
 fi
 
+# Part 4: Run Terraform
 echo ""
-echo "=== Setup Complete ==="
-echo "1. Configuration: $TFVARS_FILE"
-echo "2. Secrets:      $SECRETS_FILE (Automatically loaded by Terraform)"
+echo "--- Starting Deployment ---"
+
+# Check if terraform is installed
+if ! command -v terraform &> /dev/null; then
+    echo "Error: terraform is not installed. Please install it and try again."
+    exit 1
+fi
+
+# Get the absolute path to the root directory
+ROOT_DIR=$(pwd)
+
+# 1. Deploy Infrastructure
 echo ""
-echo "You can now run:"
-echo "  cd terraform"
-echo "  terraform init"
-echo "  terraform plan -var-file=prod.tfvars"
-echo ""
+echo "Step 1: Deploying Infrastructure..."
+cd terraform/infra || exit 1
+terraform init -input=false
+
+if terraform apply -auto-approve -var-file=prod.tfvars; then
+    echo "✓ Infrastructure deployed successfully"
+    VM_PUBLIC_IP=$(terraform output -raw vm_public_ip)
+    
+    # 2. Deploy Applications
+    echo ""
+    echo "Step 2: Deploying Applications (Grafana, Cert-Manager, etc.)..."
+    cd "$ROOT_DIR/terraform/apps" || exit 1
+    terraform init -input=false
+
+    if terraform apply -auto-approve -var-file=prod.tfvars; then
+        echo ""
+        echo "=========================================="
+        echo "        DEPLOYMENT SUCCESSFUL!"
+        echo "=========================================="
+        echo "Root Domain:  https://$root_domain"
+        echo "Grafana:      https://grafana.$root_domain"
+        echo "VM Public IP: $VM_PUBLIC_IP"
+        echo ""
+        echo "Kubeconfig is available at:"
+        echo "  $ROOT_DIR/kubeconfig.yaml"
+        echo ""
+        echo "You can check your cluster with:"
+        echo "  export KUBECONFIG=$ROOT_DIR/kubeconfig.yaml"
+        echo "  kubectl get nodes"
+        echo "=========================================="
+    else
+        echo "Error: Applications deployment failed"
+        exit 1
+    fi
+else
+    echo "Error: Infrastructure deployment failed"
+    exit 1
+fi

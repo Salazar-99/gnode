@@ -14,18 +14,9 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.0"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
     cloudflare = {
       source  = "cloudflare/cloudflare"
       version = "~> 4.0"
     }
   }
 }
-

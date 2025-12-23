@@ -17,7 +17,7 @@ locals {
 
   # Parse certs.yaml - split by document separator and decode each
   # Handle both "---\n" and "---" separators, filter out empty strings
-  certs_raw       = templatefile("${path.module}/../manifests/certs.yaml", local.template_vars)
+  certs_raw       = templatefile("${path.module}/../../manifests/certs.yaml", local.template_vars)
   certs_split     = [for s in split("---", local.certs_raw) : trimspace(s) if s != "" && trimspace(s) != ""]
   certs_documents = [for doc in local.certs_split : yamldecode(doc) if doc != ""]
 
@@ -27,19 +27,19 @@ locals {
   root_domain_ingress_manifest = local.certs_documents[2]
 
   # Parse grafana-ingress.yaml (single document)
-  grafana_ingress_manifest = yamldecode(templatefile("${path.module}/../manifests/grafana-ingress.yaml", local.template_vars))
+  grafana_ingress_manifest = yamldecode(templatefile("${path.module}/../../manifests/grafana-ingress.yaml", local.template_vars))
 }
 
 # ClusterIssuer for Let's Encrypt
 resource "null_resource" "letsencrypt_cluster_issuer" {
-  depends_on = [helm_release.cert_manager, null_resource.copy_kubeconfig]
+  depends_on = [helm_release.cert_manager]
 
   triggers = {
     manifest_hash = sha256(jsonencode(local.cluster_issuer_manifest))
   }
 
   provisioner "local-exec" {
-    command = "kubectl --kubeconfig=${path.module}/../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.cluster_issuer_manifest)}\nEOF"
+    command = "kubectl --kubeconfig=${path.module}/../../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.cluster_issuer_manifest)}\nEOF"
   }
 }
 
@@ -52,7 +52,7 @@ resource "null_resource" "root_domain_certificate" {
   }
 
   provisioner "local-exec" {
-    command = "kubectl --kubeconfig=${path.module}/../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.certificate_manifest)}\nEOF"
+    command = "kubectl --kubeconfig=${path.module}/../../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.certificate_manifest)}\nEOF"
   }
 }
 
@@ -65,7 +65,7 @@ resource "null_resource" "root_domain_ingress" {
   }
 
   provisioner "local-exec" {
-    command = "kubectl --kubeconfig=${path.module}/../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.root_domain_ingress_manifest)}\nEOF"
+    command = "kubectl --kubeconfig=${path.module}/../../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.root_domain_ingress_manifest)}\nEOF"
   }
 }
 
@@ -81,7 +81,7 @@ resource "null_resource" "grafana_ingress" {
   }
 
   provisioner "local-exec" {
-    command = "kubectl --kubeconfig=${path.module}/../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.grafana_ingress_manifest)}\nEOF"
+    command = "kubectl --kubeconfig=${path.module}/../../kubeconfig.yaml apply -f - <<EOF\n${yamlencode(local.grafana_ingress_manifest)}\nEOF"
   }
 }
 

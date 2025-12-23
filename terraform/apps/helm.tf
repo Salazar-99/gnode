@@ -3,8 +3,6 @@
 # Wait for Kubernetes API to be fully ready before installing Helm charts
 # Uses Kubernetes provider data source to verify API is responding and nodes are available
 data "kubernetes_nodes" "cluster" {
-  depends_on = [null_resource.copy_kubeconfig]
-
   # Validate that the API is responding and at least one node is available
   lifecycle {
     postcondition {

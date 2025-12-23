@@ -184,6 +184,26 @@ The `setup.sh` script prompts for all configuration variables and secrets. Varia
 | `acr_username` | Conditional | ACR username/token (required only if `acr_registry_url` is provided) |
 | `acr_password` | Conditional | ACR password (required only if `acr_registry_url` is provided) |
 
+## Deployment Process
+
+The deployment is split into two phases for better stability and provider isolation:
+
+### Phase 1: Infrastructure (`terraform/infra`)
+This phase handles the Azure resources and the k3s installation.
+1.  Navigate to the directory: `cd terraform/infra`
+2.  Initialize: `terraform init`
+3.  Apply: `terraform apply -var-file=prod.tfvars`
+
+**Outputs**: This will generate a `kubeconfig.yaml` in the project root.
+
+### Phase 2: Applications (`terraform/apps`)
+This phase handles Helm charts and Kubernetes manifests.
+1.  Navigate to the directory: `cd terraform/apps`
+2.  Initialize: `terraform init`
+3.  Apply: `terraform apply -var-file=prod.tfvars`
+
+---
+
 ## Installation Flow and Dependencies
 
 #### Phase 1: Infrastructure Setup (Networking)

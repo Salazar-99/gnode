@@ -28,7 +28,7 @@ resource "azurerm_linux_virtual_machine" "gnode_vm" {
     version   = "latest"
   }
 
-  custom_data = base64encode(file("${path.module}/../manifests/cloud-init.yaml"))
+  custom_data = base64encode(file("${path.module}/../../manifests/cloud-init.yaml"))
 
   tags = {
     environment = "gnode"
@@ -68,8 +68,9 @@ resource "null_resource" "wait_for_k3s" {
         fi
 
         # Check if k3s service is active and kubeconfig exists
+        # We don't redirect stderr to /dev/null here so we can see SSH errors
         if $SSH_CMD $ADMIN_USER@$VM_IP \
-          'sudo systemctl is-active k3s > /dev/null 2>&1 && sudo test -f /etc/rancher/k3s/k3s.yaml' 2>/dev/null; then
+          'sudo systemctl is-active k3s > /dev/null 2>&1 && sudo test -f /etc/rancher/k3s/k3s.yaml'; then
           echo "k3s is ready!"
           exit 0
         fi
@@ -118,22 +119,22 @@ resource "null_resource" "copy_kubeconfig" {
 
       # Copy kubeconfig from VM
       $SSH_CMD $ADMIN_USER@$VM_IP \
-        'sudo cat /etc/rancher/k3s/k3s.yaml' > ${path.module}/../kubeconfig.yaml.tmp
+        'sudo cat /etc/rancher/k3s/k3s.yaml' > ${path.module}/../../kubeconfig.yaml.tmp
       
       # Replace server IP with VM's public IP
       sed "s|server: https://127.0.0.1:6443|server: https://$VM_IP:6443|g" \
-        ${path.module}/../kubeconfig.yaml.tmp > ${path.module}/../kubeconfig.yaml
+        ${path.module}/../../kubeconfig.yaml.tmp > ${path.module}/../../kubeconfig.yaml
       
       # Clean up temp file
-      rm -f ${path.module}/../kubeconfig.yaml.tmp
+      rm -f ${path.module}/../../kubeconfig.yaml.tmp
       
-      echo "Kubeconfig copied to ${path.module}/../kubeconfig.yaml"
+      echo "Kubeconfig copied to ${path.module}/../../kubeconfig.yaml"
     EOT
   }
 
   # Re-run if VM IP changes
   provisioner "local-exec" {
     when    = destroy
-    command = "rm -f ${path.module}/../kubeconfig.yaml"
+    command = "rm -f ${path.module}/../../kubeconfig.yaml"
   }
 }
