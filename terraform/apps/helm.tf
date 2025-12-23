@@ -48,6 +48,13 @@ resource "helm_release" "kube_prometheus_stack" {
       persistence:
         enabled: true
         size: 5Gi
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 50m
+        limits:
+          memory: 256Mi
+          cpu: 200m
     alertmanager:
       enabled: true
       alertmanagerSpec:

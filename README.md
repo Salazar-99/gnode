@@ -161,7 +161,7 @@ The `setup.sh` script prompts for all configuration variables and secrets. Varia
 | Name | Required | Description |
 |------|----------|-------------|
 | `resource_group_name` | No | Azure resource group name (default: `gnode`) |
-| `location` | No | Azure region (default: `westus2`) |
+| `location` | No | Azure region (default: `westus`) |
 | `vm_size` | No | Azure VM size (default: `Standard_D4s_v3`, ~$140/mo) |
 | `admin_username` | No | SSH admin username for the VM (default: `g`) |
 | `vm_name` | No | Name of the Azure VM (default: `gnode`) |
@@ -183,6 +183,53 @@ The `setup.sh` script prompts for all configuration variables and secrets. Varia
 | `grafana_admin_password` | **Yes** | Password for the Grafana `admin` user |
 | `acr_username` | Conditional | ACR username/token (required only if `acr_registry_url` is provided) |
 | `acr_password` | Conditional | ACR password (required only if `acr_registry_url` is provided) |
+
+## Optional Features
+
+### Azure Container Registry (ACR) Integration
+
+ACR integration is **optional**. If you don't provide an `acr_registry_url`, no image pull secrets will be created, and you can use public container images or configure registry credentials manually.
+
+**When to enable:**
+- You have a private Azure Container Registry with your application images
+- You want Terraform to automatically create and manage Kubernetes image pull secrets
+
+**How to enable:**
+1. Set `acr_registry_url` to your registry URL (e.g., `myregistry.azurecr.io`)
+2. Provide `acr_username` and `acr_password` credentials
+3. Optionally customize `acr_secret_name` (default: `acr-secret`) and `acr_secret_namespace` (default: `apps`)
+
+The setup script will only prompt for ACR credentials if you provide a registry URL.
+
+### GitHub Actions IP Access
+
+By default, the Kubernetes API (port 6443) is only accessible from your local IP address. If you want to deploy to the cluster from GitHub Actions CI/CD pipelines, you can enable access from GitHub's runner IP ranges.
+
+**When to enable:**
+- You have GitHub Actions workflows that need to run `kubectl` commands against the cluster
+- You want automated deployments from GitHub Actions
+
+**How to enable:**
+Set `enable_github_actions_ips = true` in your `prod.tfvars` file.
+
+**Security considerations:**
+- This opens port 6443 to all GitHub Actions runner IPs (both IPv4 and IPv6 ranges)
+- The Kubernetes API still requires valid kubeconfig credentials for authentication
+- Consider using a more restrictive approach (e.g., VPN, bastion host) for production environments with sensitive workloads
+
+**Note:** GitHub Actions IPs are fetched from GitHub's meta API and chunked to comply with Azure NSG limits (max 4000 addresses per rule).
+
+## Destroying Resources
+
+To tear down all resources created by this project, run:
+
+```bash
+./run.sh destroy
+```
+
+This will destroy the applications module first, then the infrastructure module.
+
+> **⚠️ Azure Quirks Warning**: Terraform may not successfully delete all Azure resources due to various Azure-specific behaviors (resource locks, deletion delays, dependency ordering issues, etc.). After running `destroy`, you should verify in the [Azure Portal](https://portal.azure.com) that the resource group has been fully deleted. If any resources remain, manually delete them from the Azure Portal to avoid unexpected charges.
 
 ## Deployment Process
 

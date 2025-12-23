@@ -39,30 +39,6 @@ locals {
   github_ipv6_final = length(local.github_ipv6) > 0 ? slice(local.github_ipv6, 0, min(length(local.github_ipv6), 4000 - length(local.github_ipv4_final) - 20)) : []
 }
 
-# Ensure a placeholder kubeconfig exists so the provider doesn't fail validation
-# on the very first plan before the VM is even created.
-# This file is gitignored and will be overwritten with real data by the VM provisioner.
-resource "local_file" "kubeconfig_placeholder" {
-  count    = fileexists("${path.module}/../../kubeconfig.yaml") ? 0 : 1
-  content  = <<-EOF
-    apiVersion: v1
-    clusters:
-    - cluster:
-        server: https://localhost:6443
-      name: placeholder
-    contexts:
-    - context:
-        cluster: placeholder
-        user: placeholder
-      name: placeholder
-    current-context: placeholder
-    kind: Config
-    preferences: {}
-    users:
-    - name: placeholder
-      user:
-        token: placeholder
-  EOF
-  filename = "${path.module}/../../kubeconfig.yaml"
-}
+# [Kubeconfig placeholder logic removed - now handled by run.sh]
+
 

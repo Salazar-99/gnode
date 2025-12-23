@@ -58,7 +58,7 @@ resource "null_resource" "wait_for_k3s" {
       
       while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
         # Build SSH command with optional private key
-        SSH_CMD="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5"
+        SSH_CMD="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5"
         if [ -n "$SSH_KEY" ]; then
           # Handle tilde expansion if necessary
           EXPANDED_KEY=$(eval echo $SSH_KEY)
@@ -108,7 +108,7 @@ resource "null_resource" "copy_kubeconfig" {
       echo "Copying kubeconfig from VM..."
       
       # Build SSH command with optional private key
-      SSH_CMD="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+      SSH_CMD="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
       if [ -n "$SSH_KEY" ]; then
         # Handle tilde expansion if necessary
         EXPANDED_KEY=$(eval echo $SSH_KEY)

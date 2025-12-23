@@ -11,8 +11,8 @@ resource "cloudflare_record" "root_domain" {
   name            = "@"
   type            = "A"
   content         = azurerm_public_ip.gnode_ip.ip_address
-  ttl             = 300
-  proxied         = false
+  ttl             = 1 # Auto when proxied
+  proxied         = true
   allow_overwrite = true
 
   depends_on = [azurerm_public_ip.gnode_ip]
@@ -24,8 +24,8 @@ resource "cloudflare_record" "www_subdomain" {
   name            = "www"
   type            = "CNAME"
   content         = var.root_domain
-  ttl             = 300
-  proxied         = false
+  ttl             = 1 # Auto when proxied
+  proxied         = true
   allow_overwrite = true
 
   depends_on = [cloudflare_record.root_domain]
@@ -37,8 +37,8 @@ resource "cloudflare_record" "grafana_subdomain" {
   name            = "grafana"
   type            = "CNAME"
   content         = var.root_domain
-  ttl             = 300
-  proxied         = false
+  ttl             = 1 # Auto when proxied
+  proxied         = true
   allow_overwrite = true
 
   depends_on = [cloudflare_record.root_domain]

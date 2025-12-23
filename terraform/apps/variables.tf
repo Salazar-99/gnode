@@ -47,3 +47,9 @@ variable "grafana_admin_password" {
   sensitive   = true
 }
 
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for DNS-01 ACME challenge validation"
+  type        = string
+  sensitive   = true
+}
+

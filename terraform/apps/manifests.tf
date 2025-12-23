@@ -30,9 +30,26 @@ locals {
   grafana_ingress_manifest = yamldecode(templatefile("${path.module}/../../manifests/grafana-ingress.yaml", local.template_vars))
 }
 
+# Cloudflare API token secret for DNS-01 validation
+resource "kubernetes_secret" "cloudflare_api_token" {
+  depends_on = [helm_release.cert_manager]
+
+  metadata {
+    name      = "cloudflare-api-token"
+    namespace = "cert-manager"
+  }
+
+  data = {
+    "api-token" = var.cloudflare_api_token
+  }
+}
+
 # ClusterIssuer for Let's Encrypt
 resource "null_resource" "letsencrypt_cluster_issuer" {
-  depends_on = [helm_release.cert_manager]
+  depends_on = [
+    helm_release.cert_manager,
+    kubernetes_secret.cloudflare_api_token,
+  ]
 
   triggers = {
     manifest_hash = sha256(jsonencode(local.cluster_issuer_manifest))

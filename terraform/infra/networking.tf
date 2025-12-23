@@ -17,6 +17,8 @@ resource "azurerm_subnet" "gnode_subnet" {
   resource_group_name  = azurerm_resource_group.gnode_rg.name
   virtual_network_name = azurerm_virtual_network.gnode_vnet.name
   address_prefixes     = ["10.0.1.0/24"]
+
+  depends_on = [azurerm_virtual_network.gnode_vnet]
 }
 
 resource "azurerm_public_ip" "gnode_ip" {

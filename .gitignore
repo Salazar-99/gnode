@@ -1,10 +1,10 @@
 # Terraform
-terraform/.terraform/
-terraform/*.tfstate
-terraform/*.tfstate.backup
-terraform/.terraform.lock.hcl
-terraform/prod.tfvars
-terraform/*.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+prod.tfvars
+*.tfvars
 !terraform/terraform.tfvars.example
 .terraform.tfstate.lock.info
 

@@ -7,7 +7,7 @@ variable "resource_group_name" {
 variable "location" {
   description = "Azure region for resources"
   type        = string
-  default     = "westus2"
+  default     = "westus"
 }
 
 variable "vm_size" {

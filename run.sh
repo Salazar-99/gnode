@@ -1,7 +1,85 @@
 #!/bin/bash
 
 # Script to prompt for all Terraform variables and set up environment
-# Usage: ./setup.sh
+# Usage: ./run.sh         - Interactive setup and deployment
+#        ./run.sh destroy - Destroy all resources
+
+# Get the absolute path to the root directory
+ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+# Handle destroy command
+if [ "$1" = "destroy" ]; then
+    echo "=== Destroying Terraform Resources ==="
+    echo ""
+    echo "This will destroy all resources created by Terraform."
+    echo "Press Ctrl+C to cancel, or wait 5 seconds to continue..."
+    sleep 5
+    echo ""
+
+    DESTROY_FAILED=false
+
+    # Destroy apps first (depends on infra)
+    echo "Step 1: Destroying Applications..."
+    cd "$ROOT_DIR/terraform/apps" || exit 1
+    if [ -f "terraform.tfstate" ]; then
+        terraform init -input=false
+        if terraform destroy -auto-approve -var-file=prod.tfvars; then
+            echo "✓ Applications destroyed"
+        else
+            # If destroy failed, check if the cluster is reachable
+            # If not, the apps were destroyed along with the cluster - not an error
+            if kubectl get nodes --kubeconfig="$ROOT_DIR/kubeconfig.yaml" &>/dev/null; then
+                echo "✗ Applications destroy failed"
+                DESTROY_FAILED=true
+            else
+                echo "⚠ Cluster unreachable - apps were destroyed with the cluster"
+                # Remove stale state files since resources are gone with cluster
+                rm -f terraform.tfstate terraform.tfstate.backup
+            fi
+        fi
+    else
+        echo "⚠ No apps state found, skipping..."
+    fi
+
+    # Destroy infrastructure
+    echo ""
+    echo "Step 2: Destroying Infrastructure..."
+    cd "$ROOT_DIR/terraform/infra" || exit 1
+    if [ -f "terraform.tfstate" ]; then
+        terraform init -input=false
+        if terraform destroy -auto-approve -var-file=prod.tfvars; then
+            echo "✓ Infrastructure destroyed"
+        else
+            echo "✗ Infrastructure destroy failed"
+            DESTROY_FAILED=true
+        fi
+    else
+        echo "⚠ No infra state found, skipping..."
+    fi
+
+    echo ""
+    if [ "$DESTROY_FAILED" = true ]; then
+        echo "=========================================="
+        echo "     DESTROY COMPLETED WITH ERRORS"
+        echo "=========================================="
+        echo ""
+        echo "NOTE: Some Azure resources may not be fully deleted"
+        echo "due to Azure quirks. Check your resource group in the"
+        echo "Azure Portal and manually delete any remaining resources."
+        echo ""
+        exit 1
+    else
+        echo "=========================================="
+        echo "        DESTROY COMPLETE"
+        echo "=========================================="
+        echo ""
+        echo "NOTE: Some Azure resources may not be fully deleted"
+        echo "due to Azure quirks. Check your resource group in the"
+        echo "Azure Portal and manually delete any remaining resources."
+        echo ""
+        exit 0
+    fi
+fi
 
 echo "=== Terraform Variable Setup ==="
 echo ""
@@ -46,6 +124,8 @@ ask_input() {
 
     # Set the variable in the script scope
     local final_val="${input_val:-$default_val}"
+    # Expand tilde if present
+    final_val="${final_val/#\~/$HOME}"
     eval "$var_name=\"\$final_val\""
 }
 
@@ -77,7 +157,7 @@ ask_yes_no() {
     eval "$var_name=\"\$final_val\""
 }
 
-# Part 1: Configuration Variables
+# Configuration Variables
 echo "--- Configuration Variables ---"
 echo "Press Enter to use default values shown in brackets"
 echo ""
@@ -85,7 +165,7 @@ echo ""
 ask_input "resource_group_name" "Azure resource group name" "gnode"
 echo "resource_group_name = \"$resource_group_name\"" >> "$TFVARS_INFRA"
 
-ask_input "location" "Azure region" "westus2"
+ask_input "location" "Azure region" "westus"
 echo "location = \"$location\"" >> "$TFVARS_INFRA"
 
 ask_input "vm_size" "VM size" "Standard_D4s_v3"
@@ -96,11 +176,6 @@ echo "admin_username = \"$admin_username\"" >> "$TFVARS_INFRA"
 
 ask_input "vm_name" "VM name" "gnode"
 echo "vm_name = \"$vm_name\"" >> "$TFVARS_INFRA"
-
-ask_input "local_ip_address" "Local IP address (CIDR) [empty]" ""
-if [ -n "$local_ip_address" ]; then
-    echo "local_ip_address = \"$local_ip_address\"" >> "$TFVARS_INFRA"
-fi
 
 ask_input "ssh_private_key_path" "Local path to SSH private key" "~/.ssh/id_rsa_gnode"
 echo "ssh_private_key_path = \"$ssh_private_key_path\"" >> "$TFVARS_INFRA"
@@ -135,6 +210,7 @@ echo ""
 # SSH Key
 echo "SSH Key: Azure requires RSA format. If you don't have one, press Enter to automatically generate it."
 ask_input "SSH_KEY_FILE" "Enter path to SSH public key file" ""
+
 if [ -n "$SSH_KEY_FILE" ]; then
     if [ -f "$SSH_KEY_FILE" ]; then
         # Check if it's an RSA key
@@ -193,7 +269,7 @@ if [ -n "$acr_registry_url" ]; then
     echo "acr_password = \"$acr_pass\"" >> "$SECRETS_APPS"
 fi
 
-# Part 3: Ensure kubeconfig placeholder exists for Terraform provider validation
+# Ensure kubeconfig placeholder exists for Terraform provider validation
 KUBECONFIG_FILE="kubeconfig.yaml"
 if [ ! -f "$KUBECONFIG_FILE" ]; then
     cat <<EOF > "$KUBECONFIG_FILE"
@@ -218,20 +294,25 @@ EOF
     echo "✓ Created placeholder kubeconfig.yaml (will be updated after VM creation)"
 fi
 
-# Part 4: Run Terraform
+#  Run Terraform
 echo ""
 echo "--- Starting Deployment ---"
 
-# Check if terraform is installed
-if ! command -v terraform &> /dev/null; then
-    echo "Error: terraform is not installed. Please install it and try again."
+# Check if required binaries are installed
+for cmd in terraform kubectl helm az; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "Error: $cmd is not installed. Please install it and try again."
+        exit 1
+    fi
+done
+
+# Check if logged into Azure
+if ! az account show &> /dev/null; then
+    echo "Error: Not logged into Azure. Please run 'az login' and try again."
     exit 1
 fi
 
-# Get the absolute path to the root directory
-ROOT_DIR=$(pwd)
-
-# 1. Deploy Infrastructure
+# Deploy Infrastructure
 echo ""
 echo "Step 1: Deploying Infrastructure..."
 cd terraform/infra || exit 1
@@ -241,7 +322,7 @@ if terraform apply -auto-approve -var-file=prod.tfvars; then
     echo "✓ Infrastructure deployed successfully"
     VM_PUBLIC_IP=$(terraform output -raw vm_public_ip)
     
-    # 2. Deploy Applications
+    # Deploy Applications if Infrastructure succeeds
     echo ""
     echo "Step 2: Deploying Applications (Grafana, Cert-Manager, etc.)..."
     cd "$ROOT_DIR/terraform/apps" || exit 1
