@@ -1,0 +1,73 @@
+---
+# ClusterIssuer for Let's Encrypt
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ${letsencrypt_email}
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: traefik
+
+---
+# Certificate for ${root_domain}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ${domain_name_sanitized}
+  namespace: default
+spec:
+  secretName: ${domain_name_sanitized}-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: ${root_domain}
+  dnsNames:
+  - ${root_domain}
+  - www.${root_domain}
+
+---
+# Ingress for ${root_domain}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${domain_name_sanitized}
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - ${root_domain}
+    - www.${root_domain}
+    secretName: ${domain_name_sanitized}-tls
+  rules:
+  - host: ${root_domain}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ${domain_name_sanitized}-service
+            port:
+              number: 80
+  - host: www.${root_domain}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ${domain_name_sanitized}-service
+            port:
+              number: 80
+

@@ -1,0 +1,22 @@
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/prod.tfvars
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+
+# Kubeconfig - contains cluster credentials
+kubeconfig.yaml
+kubeconfig.yaml.tmp
+
+# OS files
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace

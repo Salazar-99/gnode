@@ -1,0 +1,78 @@
+# Example Terraform variables file for gnode
+# Copy this file to prod.tfvars and fill in your values
+# Usage: terraform apply -var-file=prod.tfvars
+
+# =============================================================================
+# Azure Configuration
+# =============================================================================
+
+# Name of the Azure resource group (all resources will be created here)
+resource_group_name = "gnode"
+
+# Azure region (e.g., westus2, eastus, centralus)
+location = "westus2"
+
+# =============================================================================
+# Virtual Machine Configuration
+# =============================================================================
+
+# VM name (will also be used as prefix for related resources)
+vm_name = "gnode"
+
+# Azure VM size - see https://docs.microsoft.com/en-us/azure/virtual-machines/sizes
+# Default is Standard_D4s_v3 (~$140/month) - 4 vCPUs, 16GB RAM
+vm_size = "Standard_D4s_v3"
+
+# SSH admin username for the VM
+admin_username = "azureuser"
+
+# =============================================================================
+# Network Security Configuration
+# =============================================================================
+
+# GitHub Actions IP ranges for Kubernetes API access (port 6443)
+# Get latest ranges from: https://api.github.com/meta
+github_actions_ips = [
+  "140.82.112.0/20",
+  "143.55.64.0/20",
+  "185.199.108.0/22",
+  "192.30.252.0/22"
+]
+
+# Your local IP address (CIDR format) for SSH and K8s API access
+# Leave empty to auto-detect from ipify.org
+# local_ip_address = "1.2.3.4/32"
+
+# =============================================================================
+# Domain & DNS Configuration
+# =============================================================================
+
+# Your root domain (must be managed by Cloudflare)
+root_domain = "example.com"
+
+# Email for Let's Encrypt certificate notifications
+# Leave empty to use admin@{root_domain}
+# letsencrypt_email = "admin@example.com"
+
+# =============================================================================
+# Azure Container Registry Configuration (Optional)
+# =============================================================================
+
+# ACR registry URL - leave empty to skip ACR secret creation
+# acr_registry_url = "myregistry.azurecr.io"
+
+# ACR secret configuration
+acr_secret_name      = "acr-secret"
+acr_secret_namespace = "apps"
+
+# =============================================================================
+# Sensitive Variables (set via environment variables)
+# =============================================================================
+# The following variables should be set as environment variables for security:
+#
+#   export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_rsa.pub)"
+#   export TF_VAR_cloudflare_api_token="your-cloudflare-api-token"
+#   export TF_VAR_grafana_admin_password="your-secure-password"
+#   export TF_VAR_acr_username="your-acr-username"      # Optional
+#   export TF_VAR_acr_password="your-acr-password"      # Optional
+
