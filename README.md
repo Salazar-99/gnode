@@ -20,21 +20,39 @@ This Terraform module deploys:
 Make sure you have your API keys and credentials ready!
 
 ## Usage
-Login to Azure with
 
-```az login```
+### Deploy
 
-Configure environment variables and secrets by running the setup script (see [Configuration](#configuration) below for details)
+Login to Azure and run the setup script:
 
-```source setup.sh```
-
-Run Terraform (from the terraform directory)
 ```bash
-cd terraform
-terraform init
-terraform plan -var-file=prod.tfvars
-terraform apply -var-file=prod.tfvars
+az login
+./run.sh
 ```
+
+The script will interactively prompt for all configuration variables and secrets (see [Configuration](#configuration) below for details), then automatically deploy both infrastructure and applications.
+
+### Destroy
+
+To tear down all resources:
+
+```bash
+./run.sh destroy
+```
+
+This destroys the applications module first, then the infrastructure module.
+
+> **⚠️ Azure Quirks Warning**: Terraform may not successfully delete all Azure resources. After running `destroy`, verify in the [Azure Portal](https://portal.azure.com) that the resource group has been fully deleted. A VNet or Resource Group might be left hanging.
+
+### Cleanup
+
+To remove all local Terraform state and configuration files (useful for a fresh start):
+
+```bash
+./run.sh cleanup
+```
+
+This deletes `.terraform/` directories, `*.tfstate` files, and `*.tfvars` files from both modules.
 
 The whole process should take approximately 10-15 minutes end to end. Terraform will output the public IP of the instance and a properly configured kubeconfig to connect to the cluster.
 
@@ -154,7 +172,7 @@ Once the deployment is complete you can monitor your system via Grafana by visit
 
 ## Configuration
 
-The `setup.sh` script prompts for all configuration variables and secrets. Variables are written to `terraform/prod.tfvars`, while secrets are set as environment variables.
+The `run.sh` script prompts for all configuration variables and secrets. Variables are written to `terraform/infra/prod.tfvars` and `terraform/apps/prod.tfvars`, while secrets are written to corresponding `secrets.auto.tfvars` files.
 
 ### Variables
 
@@ -218,18 +236,6 @@ Set `enable_github_actions_ips = true` in your `prod.tfvars` file.
 - Consider using a more restrictive approach (e.g., VPN, bastion host) for production environments with sensitive workloads
 
 **Note:** GitHub Actions IPs are fetched from GitHub's meta API and chunked to comply with Azure NSG limits (max 4000 addresses per rule).
-
-## Destroying Resources
-
-To tear down all resources created by this project, run:
-
-```bash
-./run.sh destroy
-```
-
-This will destroy the applications module first, then the infrastructure module.
-
-> **⚠️ Azure Quirks Warning**: Terraform may not successfully delete all Azure resources due to various Azure-specific behaviors (resource locks, deletion delays, dependency ordering issues, etc.). After running `destroy`, you should verify in the [Azure Portal](https://portal.azure.com) that the resource group has been fully deleted. If any resources remain, manually delete them from the Azure Portal to avoid unexpected charges.
 
 ## Deployment Process
 

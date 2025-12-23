@@ -3,6 +3,7 @@
 # Script to prompt for all Terraform variables and set up environment
 # Usage: ./run.sh         - Interactive setup and deployment
 #        ./run.sh destroy - Destroy all resources
+#        ./run.sh cleanup - Delete all .terraform, tfstate, and tfvars files
 
 # Get the absolute path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -79,6 +80,56 @@ if [ "$1" = "destroy" ]; then
         echo ""
         exit 0
     fi
+fi
+
+# Handle cleanup command
+if [ "$1" = "cleanup" ]; then
+    echo "=== Cleaning up Terraform files ==="
+    echo ""
+    echo "This will delete all .terraform directories, tfstate files, and tfvars files."
+    echo "Press Ctrl+C to cancel, or wait 5 seconds to continue..."
+    sleep 5
+    echo ""
+
+    for module in "$ROOT_DIR/terraform/infra" "$ROOT_DIR/terraform/apps"; do
+        if [ -d "$module" ]; then
+            echo "Cleaning $module..."
+            
+            # Remove .terraform directory
+            if [ -d "$module/.terraform" ]; then
+                rm -rf "$module/.terraform"
+                echo "  ✓ Removed .terraform/"
+            fi
+            
+            # Remove .terraform.lock.hcl
+            if [ -f "$module/.terraform.lock.hcl" ]; then
+                rm -f "$module/.terraform.lock.hcl"
+                echo "  ✓ Removed .terraform.lock.hcl"
+            fi
+            
+            # Remove tfstate files
+            for f in "$module"/*.tfstate "$module"/*.tfstate.backup; do
+                if [ -f "$f" ]; then
+                    rm -f "$f"
+                    echo "  ✓ Removed $(basename "$f")"
+                fi
+            done
+            
+            # Remove tfvars files
+            for f in "$module"/*.tfvars "$module"/*.auto.tfvars; do
+                if [ -f "$f" ]; then
+                    rm -f "$f"
+                    echo "  ✓ Removed $(basename "$f")"
+                fi
+            done
+        fi
+    done
+
+    echo ""
+    echo "=========================================="
+    echo "          CLEANUP COMPLETE"
+    echo "=========================================="
+    exit 0
 fi
 
 echo "=== Terraform Variable Setup ==="
