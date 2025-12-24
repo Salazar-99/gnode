@@ -28,7 +28,7 @@ Login to Azure and run the setup script:
 
 ```bash
 az login
-./run.sh
+./gnode.sh
 ```
 
 The script will interactively prompt for all configuration variables and secrets (see [Configuration](#configuration) below for details), then automatically deploy both infrastructure and applications.
@@ -38,7 +38,7 @@ The script will interactively prompt for all configuration variables and secrets
 To tear down all resources:
 
 ```bash
-./run.sh destroy
+./gnode.sh destroy
 ```
 
 This destroys the applications module first, then the infrastructure module.
@@ -50,7 +50,7 @@ This destroys the applications module first, then the infrastructure module.
 To remove all local Terraform state and configuration files (useful for a fresh start):
 
 ```bash
-./run.sh cleanup
+./gnode.sh cleanup
 ```
 
 This deletes `.terraform/` directories, `*.tfstate` files, and `*.tfvars` files from both modules.
@@ -59,7 +59,7 @@ The whole process should take approximately 10-15 minutes end to end. Terraform 
 
 ## Configuration
 
-The `run.sh` script prompts for all configuration variables and secrets. Variables are written to `terraform/infra/prod.tfvars` and `terraform/apps/prod.tfvars`, while secrets are written to corresponding `secrets.auto.tfvars` files.
+The `gnode.sh` script prompts for all configuration variables and secrets. Variables are written to `terraform/infra/prod.tfvars` and `terraform/apps/prod.tfvars`, while secrets are written to corresponding `secrets.auto.tfvars` files.
 
 ### Variables
 

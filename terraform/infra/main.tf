@@ -39,6 +39,3 @@ locals {
   github_ipv6_final = length(local.github_ipv6) > 0 ? slice(local.github_ipv6, 0, min(length(local.github_ipv6), 4000 - length(local.github_ipv4_final) - 20)) : []
 }
 
-# [Kubeconfig placeholder logic removed - now handled by run.sh]
-
-

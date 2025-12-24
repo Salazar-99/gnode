@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Script to prompt for all Terraform variables and set up environment
-# Usage: ./run.sh         - Interactive setup and deployment
-#        ./run.sh destroy - Destroy all resources
-#        ./run.sh cleanup - Delete all .terraform, tfstate, and tfvars files
+# Usage: ./gnode.sh         - Interactive setup and deployment
+#        ./gnode.sh destroy - Destroy all resources
+#        ./gnode.sh cleanup - Delete all .terraform, tfstate, and tfvars files
 
 # Get the absolute path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
