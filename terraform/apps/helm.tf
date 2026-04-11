@@ -45,6 +45,10 @@ resource "helm_release" "kube_prometheus_stack" {
     grafana:
       enabled: true
       adminPassword: "${var.grafana_admin_password}"
+      grafana.ini:
+        auth.anonymous:
+          enabled: true
+          org_role: Viewer
       persistence:
         enabled: true
         size: 5Gi

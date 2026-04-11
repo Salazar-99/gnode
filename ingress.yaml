@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{"cert-manager.io/cluster-issuer":"letsencrypt-prod","traefik.ingress.kubernetes.io/router.entrypoints":"web,websecure"},"name":"gerardosalazar-com","namespace":"default"},"spec":{"ingressClassName":"traefik","rules":[{"host":"gerardosalazar.com","http":{"paths":[{"backend":{"service":{"name":"gerardosalazar-com-service","port":{"number":80}}},"path":"/","pathType":"Prefix"}]}},{"host":"www.gerardosalazar.com","http":{"paths":[{"backend":{"service":{"name":"gerardosalazar-com-service","port":{"number":80}}},"path":"/","pathType":"Prefix"}]}}],"tls":[{"hosts":["gerardosalazar.com","www.gerardosalazar.com"],"secretName":"gerardosalazar-com-tls"}]}}
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+  creationTimestamp: "2025-12-24T02:40:13Z"
+  generation: 1
+  name: gerardosalazar-com
+  namespace: apps
+  resourceVersion: "1023"
+  uid: 701400be-bca1-43c1-a400-3080eacb33c3
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: gerardosalazar.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: gerardosalazar-com-service
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  - host: www.gerardosalazar.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: gerardosalazar-com-service
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - gerardosalazar.com
+    - www.gerardosalazar.com
+    secretName: gerardosalazar-com-tls
+status:
+  loadBalancer:
+    ingress:
+    - ip: 10.0.1.4
