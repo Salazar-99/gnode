@@ -45,10 +45,17 @@ resource "helm_release" "kube_prometheus_stack" {
     grafana:
       enabled: true
       adminPassword: "${var.grafana_admin_password}"
+      # grl-traces-panel requires Grafana >=12.3.0 (plugin.json grafanaDependency).
+      image:
+        tag: "12.3.0"
       grafana.ini:
         auth.anonymous:
           enabled: true
           org_role: Viewer
+        plugins:
+          allow_loading_unsigned_plugins: grl-traces-panel
+      env:
+        GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: grl-traces-panel
       persistence:
         enabled: true
         size: 5Gi
@@ -57,7 +64,7 @@ resource "helm_release" "kube_prometheus_stack" {
           memory: 128Mi
           cpu: 50m
         limits:
-          memory: 256Mi
+          memory: 512Mi
           cpu: 200m
     alertmanager:
       enabled: true

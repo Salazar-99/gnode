@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gchat-scaling-dashboard
+  namespace: apps
+  labels:
+    app: gchat-scaling-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gchat-scaling-dashboard
+  template:
+    metadata:
+      labels:
+        app: gchat-scaling-dashboard
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: dashboard
+          image: gimages.azurecr.io/gchat-scaling-dashboard:1.0
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 5001
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gchat-scaling-dashboard
+  namespace: apps
+  labels:
+    app: gchat-scaling-dashboard
+spec:
+  selector:
+    app: gchat-scaling-dashboard
+  ports:
+    - name: http
+      port: 5001
+      targetPort: http

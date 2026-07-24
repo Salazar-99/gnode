@@ -79,16 +79,16 @@ resource "azurerm_network_security_group" "gnode_nsg" {
     }
   }
 
-  # Kubernetes API port - allow access from local IP address
+  # Kubernetes API port - allow access from anywhere
   security_rule {
-    name                       = "KubernetesAPI-LocalIP"
+    name                       = "KubernetesAPI-Anywhere"
     priority                   = 2000
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "6443"
-    source_address_prefix      = local.local_ip_cidr
+    source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
 

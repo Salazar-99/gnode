@@ -44,3 +44,16 @@ resource "cloudflare_record" "grafana_subdomain" {
   depends_on = [cloudflare_record.root_domain]
 }
 
+# CNAME record for gchat subdomain pointing to root domain
+resource "cloudflare_record" "gchat_subdomain" {
+  zone_id         = data.cloudflare_zone.main.id
+  name            = "gchat"
+  type            = "CNAME"
+  content         = var.root_domain
+  ttl             = 1 # Auto when proxied
+  proxied         = true
+  allow_overwrite = true
+
+  depends_on = [cloudflare_record.root_domain]
+}
+
